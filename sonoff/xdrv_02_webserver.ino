@@ -789,6 +789,17 @@ void HandleWifiConfiguration()
   HandleWifi(false);
 }
 
+String htmlEscape(String s)
+{
+    s.replace("&", "&amp;");
+    s.replace("<", "&lt;");
+    s.replace(">", "&gt;");
+    s.replace("\"", "&quot;");
+    s.replace("'", "&#x27;");
+    s.replace("/", "&#x2F;");
+    return s;
+}
+
 void HandleWifi(boolean scan)
 {
   if (HttpUser()) { return; }
@@ -854,7 +865,7 @@ void HandleWifi(boolean scan)
           String item = FPSTR(HTTP_LNK_ITEM);
           String rssiQ;
           rssiQ += quality;
-          item.replace(F("{v}"), WiFi.SSID(indices[i]));
+          item.replace(F("{v}"), htmlEscape(WiFi.SSID(indices[i])));
           item.replace(F("{w}"), String(WiFi.channel(indices[i])));
           item.replace(F("{r}"), rssiQ);
           uint8_t auth = WiFi.encryptionType(indices[i]);
@@ -1013,6 +1024,10 @@ void HandleBackupConfiguration()
   WebServer->sendHeader(F("Content-Disposition"), attachment);
 
   WebServer->send(200, FPSTR(HDR_CTYPE_STREAM), "");
+
+  uint16_t cfg_crc = Settings.cfg_crc;
+  Settings.cfg_crc = GetSettingsCrc();  // Calculate crc (again) as it might be wrong when savedata = 0 (#3918)
+
   memcpy(settings_buffer, &Settings, sizeof(Settings));
   if (config_xor_on_set) {
     for (uint16_t i = 2; i < sizeof(Settings); i++) {
@@ -1030,6 +1045,8 @@ void HandleBackupConfiguration()
 #endif
 
   SettingsBufferFree();
+
+  Settings.cfg_crc = cfg_crc;  // Restore crc in case savedata = 0 to make sure settings will be noted as changed
 }
 
 void HandleSaveSettings()
