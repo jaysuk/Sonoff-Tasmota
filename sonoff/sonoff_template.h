@@ -125,7 +125,9 @@ enum UserSelectablePins {
   GPIO_PZEM2_TX,       // PZEM-003,014,016,017 Serial interface
   GPIO_PZEM2_RX,       // PZEM-003,014,016,017 Serial interface
   GPIO_MP3_DFR562,     // RB-DFR-562, DFPlayer Mini MP3 Player
-  GPIO_SDS0X1_TX,         // Nova Fitness SDS011 Serial interface
+  GPIO_SDS0X1_TX,      // Nova Fitness SDS011 Serial interface
+  GPIO_HX711_SCK,      // HX711 Load Cell clock
+  GPIO_HX711_DAT,      // HX711 Load Cell data
   GPIO_SENSOR_END };
 
 // Programmer selectable GPIO functionality offset by user selectable GPIOs
@@ -135,9 +137,11 @@ enum ProgramSelectablePins {
   GPIO_SPI_MISO,       // SPI MISO library fixed pin GPIO12
   GPIO_SPI_MOSI,       // SPI MOSI library fixed pin GPIO13
   GPIO_SPI_CLK,        // SPI Clk library fixed pin GPIO14
-  GPIO_HLW_SEL,        // HLW8012 Sel output (Sonoff Pow)
-  GPIO_HLW_CF1,        // HLW8012 CF1 voltage / current (Sonoff Pow)
-  GPIO_HLW_CF,         // HLW8012 CF power (Sonoff Pow)
+  GPIO_NRG_SEL,        // HLW8012/HLJ-01 Sel output (1 = Voltage)
+  GPIO_NRG_SEL_INV,    // HLW8012/HLJ-01 Sel output (0 = Voltage)
+  GPIO_NRG_CF1,        // HLW8012/HLJ-01 CF1 voltage / current
+  GPIO_HLW_CF,         // HLW8012 CF power
+  GPIO_HJL_CF,         // HJL-01/BL0937 CF power
   GPIO_ADC0,           // ADC
   GPIO_DI,             // my92x1 PWM input
   GPIO_DCKI,           // my92x1 CLK input
@@ -177,7 +181,8 @@ const char kSensorNames[] PROGMEM =
   D_SENSOR_BUTTON "1n|" D_SENSOR_BUTTON "2n|" D_SENSOR_BUTTON "3n|" D_SENSOR_BUTTON "4n|"
   D_SENSOR_COUNTER "1n|" D_SENSOR_COUNTER "2n|" D_SENSOR_COUNTER "3n|" D_SENSOR_COUNTER "4n|"
   D_SENSOR_PZEM_TX "|" D_SENSOR_PZEM_RX "|"
-  D_SENSOR_DFR562 "|" D_SENSOR_SDS0X1_TX;
+  D_SENSOR_DFR562 "|" D_SENSOR_SDS0X1_TX "|"
+  D_SENSOR_HX711_SCK "|" D_SENSOR_HX711_DAT;
 
 /********************************************************************************************/
 
@@ -235,6 +240,7 @@ enum SupportedModules {
   ESP_SWITCH,
   OBI,
   TECKIN,
+  APLIC_WDP303075,
   MAXMODULE };
 
 /********************************************************************************************/
@@ -337,6 +343,8 @@ const uint8_t kGpioNiceList[GPIO_SENSOR_END] PROGMEM = {
   GPIO_TM16CLK,        // TM1638 Clock
   GPIO_TM16DIO,        // TM1638 Data I/O
   GPIO_TM16STB,        // TM1638 Strobe
+  GPIO_HX711_SCK,      // HX711 Load Cell clock
+  GPIO_HX711_DAT,      // HX711 Load Cell data
   GPIO_SBR_TX,         // Serial Bridge Serial interface
   GPIO_SBR_RX,         // Serial Bridge Serial interface
   GPIO_MHZ_TXD,        // MH-Z19 Serial interface
@@ -395,6 +403,7 @@ const uint8_t kModuleNiceList[MAXMODULE] PROGMEM = {
   SHELLY2,
   BLITZWOLF_BWSHP2,   // Socket Relay Devices with Energy Monitoring
   TECKIN,
+  APLIC_WDP303075,
   NEO_COOLCAM,        // Socket Relay Devices
   OBI,
   ESP_SWITCH,         // Switch Devices
@@ -490,10 +499,10 @@ const mytmplt kModules[MAXMODULE] PROGMEM = {
   { "Sonoff Pow",      // Sonoff Pow (ESP8266 - HLW8012)
      GPIO_KEY1,        // GPIO00 Button
      0, 0, 0, 0,
-     GPIO_HLW_SEL,     // GPIO05 HLW8012 Sel output
+     GPIO_NRG_SEL,     // GPIO05 HLW8012 Sel output (1 = Voltage)
      0, 0, 0, 0, 0, 0, // Flash connection
      GPIO_REL1,        // GPIO12 Red Led and Relay (0 = Off, 1 = On)
-     GPIO_HLW_CF1,     // GPIO13 HLW8012 CF1 voltage / current
+     GPIO_NRG_CF1,     // GPIO13 HLW8012 CF1 voltage / current
      GPIO_HLW_CF,      // GPIO14 HLW8012 CF power
      GPIO_LED1,        // GPIO15 Blue Led (0 = On, 1 = Off)
      0, 0
@@ -727,8 +736,8 @@ const mytmplt kModules[MAXMODULE] PROGMEM = {
      GPIO_KEY1,        // GPIO4 Button
      GPIO_REL1_INV,    // GPIO5 Relay (0 = On, 1 = Off)
      0, 0, 0, 0, 0, 0, // Flash connection
-     GPIO_HLW_CF1,     // GPIO12 HLW8012 CF1 voltage / current
-     GPIO_HLW_SEL,     // GPIO13 HLW8012 Sel output
+     GPIO_NRG_CF1,     // GPIO12 HLW8012 CF1 voltage / current
+     GPIO_NRG_SEL,     // GPIO13 HLW8012 Sel output (1 = Voltage)
      GPIO_HLW_CF,      // GPIO14 HLW8012 CF power
      0, 0, 0
   },
@@ -897,10 +906,10 @@ const mytmplt kModules[MAXMODULE] PROGMEM = {
                        // https://www.amazon.com/KMC-Timing-Monitoring-Network-125V-240V/dp/B06XRX2GTQ
      GPIO_KEY1,        // GPIO00 Button
      0, 0, 0,
-     GPIO_HLW_CF,      // GPIO04 HLW8012 CF
-     GPIO_HLW_CF1,     // GPIO05 HLW8012 CF1
+     GPIO_HLW_CF,      // GPIO04 HLW8012 CF power
+     GPIO_NRG_CF1,     // GPIO05 HLW8012 CF1 voltage / current
      0, 0, 0, 0, 0, 0, // Flash connection
-     GPIO_HLW_SEL,     // GPIO12 HLW8012 SEL
+     GPIO_NRG_SEL,     // GPIO12 HLW8012 SEL (1 = Voltage)
      GPIO_LED1_INV,    // GPIO13 Green Led
      GPIO_REL1,        // GPIO14 Relay
      0, 0, 0
@@ -1028,11 +1037,11 @@ const mytmplt kModules[MAXMODULE] PROGMEM = {
      GPIO_LED1_INV,    // GPIO02 Blue Led (1 = On, 0 = Off)
      GPIO_USER,        // GPIO03 Serial TXD and Optional sensor
      0,
-     GPIO_HLW_CF,      // GPIO05 BL0937 or HJL-01 CF power
+     GPIO_HJL_CF,      // GPIO05 BL0937 or HJL-01 CF power
      0, 0, 0, 0, 0, 0, // Flash connection
-     GPIO_HLW_SEL,     // GPIO12 BL0937 or HJL-01 Sel output
+     GPIO_NRG_SEL_INV, // GPIO12 BL0937 or HJL-01 Sel output (0 = Voltage)
      GPIO_KEY1,        // GPIO13 Button
-     GPIO_HLW_CF1,     // GPIO14 BL0937 or HJL-01 CF1 voltage / current
+     GPIO_NRG_CF1,     // GPIO14 BL0937 or HJL-01 CF1 current / voltage
      GPIO_REL1,        // GPIO15 Relay (0 = Off, 1 = On)
      0, 0
   },
@@ -1105,12 +1114,24 @@ const mytmplt kModules[MAXMODULE] PROGMEM = {
      GPIO_KEY1,        // GPIO01 Serial TXD and Button
      0,
      GPIO_LED2_INV,    // GPIO03 Serial RXD and Red Led (0 = On, 1 = Off)
-     GPIO_HLW_CF,      // GPIO04 BL0937 or HJL-01 CF power
-     GPIO_HLW_CF1,     // GPIO05 BL0937 or HJL-01 CF1 voltage / current
+     GPIO_HJL_CF,      // GPIO04 BL0937 or HJL-01 CF power
+     GPIO_NRG_CF1,     // GPIO05 BL0937 or HJL-01 CF1 current / voltage
      0, 0, 0, 0, 0, 0, // Flash connection
-     GPIO_HLW_SEL,     // GPIO12 BL0937 or HJL-01 Sel output
+     GPIO_NRG_SEL_INV, // GPIO12 BL0937 or HJL-01 Sel output (0 = Voltage)
      GPIO_LED1_INV,    // GPIO13 Blue Led (0 = On, 1 = Off)
      GPIO_REL1,        // GPIO14 Relay (0 = Off, 1 = On)
+     0, 0, 0
+  },
+  { "AplicWDP303075",  // Aplic WDP 303075 (ESP8285 - HLW8012 Energy Monitoring)
+                       // https://www.amazon.de/dp/B07CNWVNJ2
+     0, 0, 0,
+     GPIO_KEY1,        // GPIO03 Button
+     GPIO_HLW_CF,      // GPIO04 HLW8012 CF power
+     GPIO_NRG_CF1,     // GPIO05 HLW8012 CF1 current / voltage
+     0, 0, 0, 0, 0, 0, // Flash connection
+     GPIO_NRG_SEL_INV, // GPIO12 HLW8012 CF Sel output (0 = Voltage)
+     GPIO_LED1_INV,    // GPIO13 LED (0 = On, 1 = Off)
+     GPIO_REL1,        // GPIO14 Relay SRU 5VDC SDA (0 = Off, 1 = On )
      0, 0, 0
   }
 };

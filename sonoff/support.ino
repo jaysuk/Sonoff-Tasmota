@@ -678,6 +678,10 @@ boolean GetUsedInModule(byte val, uint8_t *arr)
   if (GPIO_TM16DIO == val) { return true; }
   if (GPIO_TM16STB == val) { return true; }
 #endif
+#ifndef USE_HX711
+  if (GPIO_HX711_SCK == val) { return true; }
+  if (GPIO_HX711_DAT == val) { return true; }
+#endif
   if ((val >= GPIO_REL1) && (val < GPIO_REL1 + MAX_RELAYS)) {
     offset = (GPIO_REL1_INV - GPIO_REL1);
   }
@@ -1147,6 +1151,12 @@ void GetFeatures()
 #ifdef USE_PZEM2
   feature_sns2 |= 0x00000200;  // xnrg_05_pzem2.ino
 #endif
+#ifdef USE_DS3231
+  feature_sns2 |= 0x00000400;  // xsns_33_ds3231.ino
+#endif
+#ifdef USE_HX711
+  feature_sns2 |= 0x00000400;  // xsns_34_hx711.ino
+#endif
 
 }
 
@@ -1298,13 +1308,13 @@ void WiFiSetSleepMode()
  * See https://github.com/arendst/Sonoff-Tasmota/issues/2559
  */
 
-//#ifdef ARDUINO_ESP8266_RELEASE_2_4_1
+// Sleep explanation: https://github.com/esp8266/Arduino/blob/3f0c601cfe81439ce17e9bd5d28994a7ed144482/libraries/ESP8266WiFi/src/ESP8266WiFiGeneric.cpp#L255
 #if defined(ARDUINO_ESP8266_RELEASE_2_4_1) || defined(ARDUINO_ESP8266_RELEASE_2_4_2)
 #else  // Enabled in 2.3.0, 2.4.0 and stage
   if (sleep) {
     WiFi.setSleepMode(WIFI_LIGHT_SLEEP);  // Allow light sleep during idle times
   } else {
-    WiFi.setSleepMode(WIFI_MODEM_SLEEP);  // Diable sleep (Esp8288/Arduino core and sdk default)
+    WiFi.setSleepMode(WIFI_MODEM_SLEEP);  // Disable sleep (Esp8288/Arduino core and sdk default)
   }
 #endif
 }

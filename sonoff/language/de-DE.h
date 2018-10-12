@@ -456,6 +456,12 @@
 #define D_GY_AXIS "Gyroskop Y-Achse"
 #define D_GZ_AXIS "Gyroskop Z-Achse"
 
+// xsns_34_hx711.ino
+#define D_HX_CAL_REMOVE "Wägegut entfernen"
+#define D_HX_CAL_REFERENCE "Referenzgewicht auflegen"
+#define D_HX_CAL_DONE "kalibriert"
+#define D_HX_CAL_FAIL "Kalibrierung fehlgeschlagen"
+
 // sonoff_template.h
 #define D_SENSOR_NONE     "None"
 #define D_SENSOR_DHT11    "DHT11"
