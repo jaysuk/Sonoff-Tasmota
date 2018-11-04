@@ -527,6 +527,8 @@
 #define D_SENSOR_TX20_TX "TX20"
 #define D_SENSOR_RFSEND "RFSend"
 #define D_SENSOR_RFRECV "RFrecv"
+#define D_SENSOR_TUYA_TX "Tuya Tx"
+#define D_SENSOR_TUYA_RX "Tuya Rx"
 
 // Units
 #define D_UNIT_AMPERE "A"
@@ -543,6 +545,7 @@
 #define D_UNIT_MICROMETER "um"
 #define D_UNIT_MICROSECOND "us"
 #define D_UNIT_MILLIAMPERE "mA"
+#define D_UNIT_MILLIMETER_MERCURY "mmHg"
 #define D_UNIT_MILLISECOND "ms"
 #define D_UNIT_MINUTE "min"
 #define D_UNIT_PARTS_PER_BILLION "ppb"

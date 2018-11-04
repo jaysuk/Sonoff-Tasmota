@@ -1,8 +1,31 @@
-/* 6.2.1.19 20181023
+/* 6.3.0.2 20181101
+ * Add minutes to commands Timezone to allow all possible world timezones
+ * Add command SetOption24 0/1 to select pressure unit as hPa or mmHg (#4241)
+ *
+ * 6.3.0.1 20181031
+ * Add wifi status to Tuya (#4221)
+ * Add default sleep 1 to sonoff-basic to lower energy consumption (#4217)
+ * Fix unintended function overload of WifiState
+ * Add delays to reduce CPU usage at boot time (#4233)
+ *
+ * 6.3.0 20181030
+ * Release of v6.3.0
+ *
+ * 6.2.1.20 20181028
+ * Add command SetOption35 0..255 (seconds) to delay mDNS initialization to control possible Wifi connect problems
+ * Add command SetOption53 0/1 to toggle gui display of Hostname and IP address (#1006, #2091)
+ * Add token %hostname% to command FullTopic (#3018)
+ * Add support for two BMP/BME sensors (#4195)
+ * Add TotalStartTime to Energy JSON message (#3971)
+ *
+ * 6.2.1.19 20181023
  * Fix header file execution order by renaming user_config.h to my_user_config.h
  * Fix invalid JSON floating point result from nan (Not a Number) and inf (Infinity) into null (#4147)
  * Fix rule mqtt#connected trigger when mqtt is disabled (#4149)
  * Initial release of RF transceiving using library RcSwitch (#2702)
+ * Change default OTA Url to http://thehackbox.org/tasmota/release/sonoff.bin (#4170)
+ * Add Tuya Software Serial to support additional Tuya configurations (#4178)
+ * Add define USE_BASIC for selecting image sonoff-basic without most sensors
  *
  * 6.2.1.18 20181019
  * Add more API callbacks and document API.md

@@ -527,6 +527,8 @@
 #define D_SENSOR_TX20_TX "TX20"
 #define D_SENSOR_RFSEND "RFSend"
 #define D_SENSOR_RFRECV "RFrecv"
+#define D_SENSOR_TUYA_TX "Tuya Tx"
+#define D_SENSOR_TUYA_RX "Tuya Rx"
 
 // Units
 #define D_UNIT_AMPERE "А"
@@ -535,7 +537,7 @@
 #define D_UNIT_HOUR "Г"
 #define D_UNIT_INCREMENTS "inc"
 #define D_UNIT_KILOGRAM "kg"
-#define D_UNIT_KILOMETER_PER_HOUR "kmph"  // or "km/h"
+#define D_UNIT_KILOMETER_PER_HOUR "km/h"  // or "km/h"
 #define D_UNIT_KILOOHM "кОм"
 #define D_UNIT_KILOWATTHOUR "кВт"
 #define D_UNIT_LUX "лк"
@@ -543,6 +545,7 @@
 #define D_UNIT_MICROMETER "мкм"
 #define D_UNIT_MICROSECOND "мкс"
 #define D_UNIT_MILLIAMPERE "мА"
+#define D_UNIT_MILLIMETER_MERCURY "mmHg"
 #define D_UNIT_MILLISECOND "мс"
 #define D_UNIT_MINUTE "хв"
 #define D_UNIT_PARTS_PER_BILLION "ppb"

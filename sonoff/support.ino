@@ -475,6 +475,21 @@ char TempUnit()
   return (Settings.flag.temperature_conversion) ? 'F' : 'C';
 }
 
+float ConvertPressure(float p)
+{
+  float result = p;
+
+  if (!isnan(p) && Settings.flag.pressure_conversion) {
+    result = p * 0.75006375541921;  // mmHg
+  }
+  return result;
+}
+
+String PressureUnit()
+{
+  return (Settings.flag.pressure_conversion) ? String(D_UNIT_MILLIMETER_MERCURY) : String(D_UNIT_PRESSURE);
+}
+
 void SetGlobalValues(float temperature, float humidity)
 {
   global_update = uptime;
@@ -714,7 +729,6 @@ boolean GetUsedInModule(byte val, uint8_t *arr)
   if (GPIO_RFSEND == val) { return true; }
   if (GPIO_RFRECV == val) { return true; }
 #endif
-
 
   if ((val >= GPIO_REL1) && (val < GPIO_REL1 + MAX_RELAYS)) {
     offset = (GPIO_REL1_INV - GPIO_REL1);
@@ -1413,7 +1427,7 @@ void WifiBegin(uint8_t flag)
   AddLog(LOG_LEVEL_INFO);
 }
 
-void WifiState(uint8_t state)
+void WifiSetState(uint8_t state)
 {
   if (state == global_state.wifi_down) {
     if (state) {
@@ -1428,7 +1442,7 @@ void WifiState(uint8_t state)
 void WifiCheckIp()
 {
   if ((WL_CONNECTED == WiFi.status()) && (static_cast<uint32_t>(WiFi.localIP()) != 0)) {
-    WifiState(1);
+    WifiSetState(1);
     wifi_counter = WIFI_CHECK_SEC;
     wifi_retry = wifi_retry_init;
     AddLog_P((wifi_status != WL_CONNECTED) ? LOG_LEVEL_INFO : LOG_LEVEL_DEBUG_MORE, S_LOG_WIFI, PSTR(D_CONNECTED));
@@ -1440,7 +1454,7 @@ void WifiCheckIp()
     }
     wifi_status = WL_CONNECTED;
   } else {
-    WifiState(0);
+    WifiSetState(0);
     uint8_t wifi_config_tool = Settings.sta_config;
     wifi_status = WiFi.status();
     switch (wifi_status) {
@@ -1551,26 +1565,36 @@ void WifiCheck(uint8_t param)
         WifiCheckIp();
       }
       if ((WL_CONNECTED == WiFi.status()) && (static_cast<uint32_t>(WiFi.localIP()) != 0) && !wifi_config_type) {
-        WifiState(1);
+        WifiSetState(1);
 #ifdef BE_MINIMAL
         if (1 == RtcSettings.ota_loader) {
           RtcSettings.ota_loader = 0;
           ota_state_flag = 3;
         }
 #endif  // BE_MINIMAL
+
 #ifdef USE_DISCOVERY
         if (!mdns_begun) {
-          mdns_begun = MDNS.begin(my_hostname);
-          snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_MDNS "%s"), (mdns_begun) ? D_INITIALIZED : D_FAILED);
-          AddLog(LOG_LEVEL_INFO);
+          if (mdns_delayed_start) {
+            AddLog_P(LOG_LEVEL_INFO, PSTR(D_LOG_MDNS D_ATTEMPTING_CONNECTION));
+            mdns_delayed_start--;
+          } else {
+            mdns_delayed_start = Settings.param[P_MDNS_DELAYED_START];
+            mdns_begun = MDNS.begin(my_hostname);
+            snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_MDNS "%s"), (mdns_begun) ? D_INITIALIZED : D_FAILED);
+            AddLog(LOG_LEVEL_INFO);
+          }
         }
 #endif  // USE_DISCOVERY
+
 #ifdef USE_WEBSERVER
         if (Settings.webserver) {
           StartWebserver(Settings.webserver, WiFi.localIP());
 #ifdef USE_DISCOVERY
 #ifdef WEBSERVER_ADVERTISE
-          MDNS.addService("http", "tcp", WEB_PORT);
+          if (mdns_begun) {
+            MDNS.addService("http", "tcp", WEB_PORT);
+          }
 #endif  // WEBSERVER_ADVERTISE
 #endif  // USE_DISCOVERY
         } else {
@@ -1580,14 +1604,16 @@ void WifiCheck(uint8_t param)
         if (Settings.flag2.emulation) { UdpConnect(); }
 #endif  // USE_EMULATION
 #endif  // USE_WEBSERVER
+
 #ifdef USE_KNX
         if (!knx_started && Settings.flag.knx_enabled) {
           KNXStart();
           knx_started = true;
         }
 #endif  // USE_KNX
+
       } else {
-        WifiState(0);
+        WifiSetState(0);
 #if defined(USE_WEBSERVER) && defined(USE_EMULATION)
         UdpDisconnect();
 #endif  // USE_EMULATION
@@ -1602,17 +1628,16 @@ void WifiCheck(uint8_t param)
 
 int WifiState()
 {
-  int state;
+  int state = -1;
 
-  if ((WL_CONNECTED == WiFi.status()) && (static_cast<uint32_t>(WiFi.localIP()) != 0)) {
-    state = WIFI_RESTART;
-  }
+  if (!global_state.wifi_down) { state = WIFI_RESTART; }
   if (wifi_config_type) { state = wifi_config_type; }
   return state;
 }
 
 void WifiConnect()
 {
+  WifiSetState(0);
   WiFi.persistent(false);    // Solve possible wifi init errors
   wifi_status = 0;
   wifi_retry_init = WIFI_RETRY_OFFSET_SEC + ((ESP.getChipId() & 0xF) * 2);
@@ -1645,38 +1670,6 @@ void EspRestart()
 {
   ESP.restart();
 }
-
-#ifdef USE_DISCOVERY
-/*********************************************************************************************\
- * mDNS
-\*********************************************************************************************/
-
-#ifdef MQTT_HOST_DISCOVERY
-boolean MdnsDiscoverMqttServer()
-{
-  if (!mdns_begun) {
-    return false;
-  }
-
-  int n = MDNS.queryService("mqtt", "tcp");  // Search for mqtt service
-
-  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_MDNS D_QUERY_DONE " %d"), n);
-  AddLog(LOG_LEVEL_INFO);
-
-  if (n > 0) {
-    // Note: current strategy is to get the first MQTT service (even when many are found)
-    snprintf_P(Settings.mqtt_host, sizeof(Settings.mqtt_host), MDNS.IP(0).toString().c_str());
-    Settings.mqtt_port = MDNS.port(0);
-
-    snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_MDNS D_MQTT_SERVICE_FOUND " %s, " D_IP_ADDRESS " %s, " D_PORT " %d"),
-      MDNS.hostname(0).c_str(), Settings.mqtt_host, Settings.mqtt_port);
-    AddLog(LOG_LEVEL_INFO);
-  }
-
-  return n > 0;
-}
-#endif  // MQTT_HOST_DISCOVERY
-#endif  // USE_DISCOVERY
 
 /*********************************************************************************************\
  * Basic I2C routines
@@ -1902,6 +1895,7 @@ extern "C" {
 #define SECS_PER_MIN  ((uint32_t)(60UL))
 #define SECS_PER_HOUR ((uint32_t)(3600UL))
 #define SECS_PER_DAY  ((uint32_t)(SECS_PER_HOUR * 24UL))
+#define MINS_PER_HOUR ((uint32_t)(60UL))
 #define LEAP_YEAR(Y)  (((1970+Y)>0) && !((1970+Y)%4) && (((1970+Y)%100) || !((1970+Y)%400)))
 
 Ticker TickerRtc;
@@ -1916,7 +1910,7 @@ uint32_t standard_time = 0;
 uint32_t ntp_time = 0;
 uint32_t midnight = 1451602800;
 uint32_t restart_time = 0;
-int16_t  time_timezone = 0;  // Timezone * 10
+int32_t  time_timezone = 0;
 uint8_t  midnight_now = 0;
 uint8_t  ntp_sync_minute = 0;
 
@@ -1946,7 +1940,16 @@ String GetBuildDateAndTime()
   }
   int month = (strstr(kMonthNamesEnglish, smonth) -kMonthNamesEnglish) /3 +1;
   snprintf_P(bdt, sizeof(bdt), PSTR("%d" D_YEAR_MONTH_SEPARATOR "%02d" D_MONTH_DAY_SEPARATOR "%02d" D_DATE_TIME_SEPARATOR "%s"), year, month, day, __TIME__);
-  return String(bdt);
+  return String(bdt);  // 2017-03-07T11:08:02
+}
+
+String GetTimeZone()
+{
+  char tz[7];
+
+  snprintf_P(tz, sizeof(tz), PSTR("%+03d:%02d"), time_timezone / 60, abs(time_timezone % 60));
+
+  return String(tz);  // -03:45
 }
 
 /*
@@ -1967,6 +1970,10 @@ String GetDateAndTime(byte time_type)
   TIME_T tmpTime;
 
   switch (time_type) {
+    case DT_ENERGY:
+      BreakTime(Settings.energy_kWhtotal_time, tmpTime);
+      tmpTime.year += 1970;
+      break;
     case DT_UTC:
       BreakTime(utc_time, tmpTime);
       tmpTime.year += 1970;
@@ -1985,11 +1992,29 @@ String GetDateAndTime(byte time_type)
   snprintf_P(dt, sizeof(dt), PSTR("%04d-%02d-%02dT%02d:%02d:%02d"),
     tmpTime.year, tmpTime.month, tmpTime.day_of_month, tmpTime.hour, tmpTime.minute, tmpTime.second);
 
-  if (Settings.flag3.time_append_timezone && (time_type == DT_LOCAL)) {
-    snprintf_P(dt, sizeof(dt), PSTR("%s%+03d:%02d"), dt, time_timezone / 10, abs((time_timezone % 10) * 6));  // if timezone = +2:30 then time_timezone = 25
+  if (Settings.flag3.time_append_timezone && (DT_LOCAL == time_type)) {
+//  if (Settings.flag3.time_append_timezone && ((DT_LOCAL == time_type) || (DT_ENERGY == time_type))) {
+    strncat(dt, GetTimeZone().c_str(), sizeof(dt));
   }
 
-  return String(dt);
+  return String(dt);  // 2017-03-07T11:08:02-07:00
+}
+
+String GetTime(int type)
+{
+  /* type 1 - Local time
+   * type 2 - Daylight Savings time
+   * type 3 - Standard time
+   */
+  char stime[25];   // Skip newline
+
+  uint32_t time = utc_time;
+  if (1 == type) time = local_time;
+  if (2 == type) time = daylight_saving_time;
+  if (3 == type) time = standard_time;
+  snprintf_P(stime, sizeof(stime), sntp_get_real_time(time));
+
+  return String(stime);  // Thu Nov 01 11:41:02 2018
 }
 
 String GetUptime()
@@ -2009,9 +2034,9 @@ String GetUptime()
 
   // "128 14:35:44" - OpenVMS
   // "128T14:35:44" - Tasmota
-  snprintf_P(dt, sizeof(dt), PSTR("%dT%02d:%02d:%02d"),
-    ut.days, ut.hour, ut.minute, ut.second);
-  return String(dt);
+  snprintf_P(dt, sizeof(dt), PSTR("%dT%02d:%02d:%02d"), ut.days, ut.hour, ut.minute, ut.second);
+
+  return String(dt);  // 128T14:35:44
 }
 
 uint32_t GetMinutesUptime()
@@ -2159,18 +2184,6 @@ uint32_t RuleToTime(TimeRule r, int yr)
   return t;
 }
 
-String GetTime(int type)
-{
-  char stime[25];   // Skip newline
-
-  uint32_t time = utc_time;
-  if (1 == type) time = local_time;
-  if (2 == type) time = daylight_saving_time;
-  if (3 == type) time = standard_time;
-  snprintf_P(stime, sizeof(stime), sntp_get_real_time(time));
-  return String(stime);
-}
-
 uint32_t LocalTime()
 {
   return local_time;
@@ -2190,13 +2203,11 @@ boolean MidnightNow()
 
 void RtcSecond()
 {
-  int32_t stdoffset;
-  int32_t dstoffset;
   TIME_T tmpTime;
 
   if ((ntp_sync_minute > 59) && (RtcTime.minute > 2)) ntp_sync_minute = 1;                 // If sync prepare for a new cycle
   uint8_t offset = (uptime < 30) ? RtcTime.second : (((ESP.getChipId() & 0xF) * 3) + 3) ;  // First try ASAP to sync. If fails try once every 60 seconds based on chip id
-  if ((WL_CONNECTED == WiFi.status()) && (offset == RtcTime.second) && ((RtcTime.year < 2016) || (ntp_sync_minute == RtcTime.minute) || ntp_force_sync)) {
+  if (!global_state.wifi_down && (offset == RtcTime.second) && ((RtcTime.year < 2016) || (ntp_sync_minute == RtcTime.minute) || ntp_force_sync)) {
     ntp_time = sntp_get_current_timestamp();
     if (ntp_time > 1451602800) {  // Fix NTP bug in core 2.4.1/SDK 2.2.1 (returns Thu Jan 01 08:00:10 1970 after power on)
       ntp_force_sync = 0;
@@ -2224,28 +2235,31 @@ void RtcSecond()
   utc_time++;
   local_time = utc_time;
   if (local_time > 1451602800) {  // 2016-01-01
-    int32_t time_offset = Settings.timezone * SECS_PER_HOUR;
+    int16_t timezone_minutes = Settings.timezone_minutes;
+    if (Settings.timezone < 0) { timezone_minutes *= -1; }
+    time_timezone = (Settings.timezone * SECS_PER_HOUR) + (timezone_minutes * SECS_PER_MIN);
     if (99 == Settings.timezone) {
-      dstoffset = Settings.toffset[1] * SECS_PER_MIN;
-      stdoffset = Settings.toffset[0] * SECS_PER_MIN;
+      int32_t dstoffset = Settings.toffset[1] * SECS_PER_MIN;
+      int32_t stdoffset = Settings.toffset[0] * SECS_PER_MIN;
       if (Settings.tflag[1].hemis) {
         // Southern hemisphere
         if ((utc_time >= (standard_time - dstoffset)) && (utc_time < (daylight_saving_time - stdoffset))) {
-          time_offset = stdoffset;  // Standard Time
+          time_timezone = stdoffset;  // Standard Time
         } else {
-          time_offset = dstoffset;  // Daylight Saving Time
+          time_timezone = dstoffset;  // Daylight Saving Time
         }
       } else {
         // Northern hemisphere
         if ((utc_time >= (daylight_saving_time - stdoffset)) && (utc_time < (standard_time - dstoffset))) {
-          time_offset = dstoffset;  // Daylight Saving Time
+          time_timezone = dstoffset;  // Daylight Saving Time
         } else {
-          time_offset = stdoffset;  // Standard Time
+          time_timezone = stdoffset;  // Standard Time
         }
       }
     }
-    local_time += time_offset;
-    time_timezone = time_offset / 360;  // (SECS_PER_HOUR / 10) fails as it is defined as UL
+    local_time += time_timezone;
+    time_timezone /= 60;
+    if (!Settings.energy_kWhtotal_time) { Settings.energy_kWhtotal_time = local_time; }
   }
   BreakTime(local_time, RtcTime);
   if (!RtcTime.hour && !RtcTime.minute && !RtcTime.second && RtcTime.valid) {
@@ -2436,9 +2450,7 @@ void AddLog(byte loglevel)
     if (!web_log_index) web_log_index++;   // Index 0 is not allowed as it is the end of char string
   }
 #endif  // USE_WEBSERVER
-  if ((WL_CONNECTED == WiFi.status()) && (loglevel <= syslog_level)) {
-    Syslog();
-  }
+  if (!global_state.wifi_down && (loglevel <= syslog_level)) { Syslog(); }
 }
 
 void AddLog_P(byte loglevel, const char *formatP)
