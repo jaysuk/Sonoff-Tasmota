@@ -19,6 +19,8 @@
 
 #ifdef USE_TUYA_DIMMER
 
+#define XDRV_16                16
+
 #ifndef TUYA_DIMMER_ID
 #define TUYA_DIMMER_ID         0
 #endif
@@ -66,7 +68,7 @@ void TuyaSendCmd(uint8_t cmd, uint8_t payload[] = nullptr, uint16_t payload_len 
   TuyaSerial->write(cmd);                   // Tuya command
   TuyaSerial->write(payload_len >> 8);      // following data length (Hi)
   TuyaSerial->write(payload_len & 0xFF);    // following data length (Lo)
-  snprintf_P(log_data, sizeof(log_data), PSTR("TYA: Sent Packet: \"55aa00%02x%02x%02x"), cmd, payload_len >> 8, payload_len & 0xFF);
+  snprintf_P(log_data, sizeof(log_data), PSTR("TYA: TX Packet: \"55aa00%02x%02x%02x"), cmd, payload_len >> 8, payload_len & 0xFF);
   for(int i = 0; i < payload_len; ++i) {
     TuyaSerial->write(payload[i]);
     checksum += payload[i];
@@ -137,11 +139,11 @@ void LightSerialDuty(uint8_t duty)
     if (duty < 25) {
       duty = 25;  // dimming acts odd below 25(10%) - this mirrors the threshold set on the faceplate itself
     }
-    
-    TuyaSendValue(Settings.param[P_TUYA_DIMMER_ID], duty);
 
     snprintf_P(log_data, sizeof(log_data), PSTR( "TYA: Send Serial Packet Dim Value=%d (id=%d)"), duty, Settings.param[P_TUYA_DIMMER_ID]);
     AddLog(LOG_LEVEL_DEBUG);
+
+    TuyaSendValue(Settings.param[P_TUYA_DIMMER_ID], duty);
 
   } else {
     tuya_ignore_dim = false;  // reset flag
@@ -154,6 +156,7 @@ void LightSerialDuty(uint8_t duty)
 
 void TuyaRequestState(){
   if(TuyaSerial) {
+
     // Get current status of MCU
     snprintf_P(log_data, sizeof(log_data), "TYA: Request MCU state");
     AddLog(LOG_LEVEL_DEBUG);
@@ -177,7 +180,7 @@ void TuyaPacketProcess()
 
   switch(tuya_buffer[3]) {
 
-    case TUYA_CMD_HEARTBEAT: 
+    case TUYA_CMD_HEARTBEAT:
       AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: Heartbeat"));
       if(tuya_buffer[6] == 0){
         AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: Detected MCU restart"));
@@ -188,7 +191,7 @@ void TuyaPacketProcess()
     case TUYA_CMD_STATE:
       if (tuya_buffer[5] == 5) {  // on/off packet
 
-        snprintf_P(log_data, sizeof(log_data),PSTR("TYA: Rcvd - %s State"),tuya_buffer[10]?"On":"Off");
+        snprintf_P(log_data, sizeof(log_data),PSTR("TYA: RX - %s State"),tuya_buffer[10]?"On":"Off");
         AddLog(LOG_LEVEL_DEBUG);
 
         if((power || Settings.light_dimmer > 0) && (power != tuya_buffer[10])) {
@@ -197,7 +200,7 @@ void TuyaPacketProcess()
       }
       else if (tuya_buffer[5] == 8) {  // dim packet
 
-        snprintf_P(log_data, sizeof(log_data), PSTR("TYA: Rcvd Dim State=%d"), tuya_buffer[13]);
+        snprintf_P(log_data, sizeof(log_data), PSTR("TYA: RX Dim State=%d"), tuya_buffer[13]);
         AddLog(LOG_LEVEL_DEBUG);
 
         if (!Settings.param[P_TUYA_DIMMER_ID]) {
@@ -207,7 +210,7 @@ void TuyaPacketProcess()
         }
 
         tuya_new_dim = round(tuya_buffer[13] * (100. / 255.));
-        if((power) && (tuya_new_dim > 0) && (abs(tuya_new_dim - Settings.light_dimmer) > 2)) {
+        if((power || Settings.flag3.tuya_apply_o20)  && (tuya_new_dim > 0) && (abs(tuya_new_dim - Settings.light_dimmer) > 1)) {
 
           snprintf_P(scmnd, sizeof(scmnd), PSTR(D_CMND_DIMMER " %d"), tuya_new_dim );
 
@@ -222,17 +225,17 @@ void TuyaPacketProcess()
 
     case TUYA_CMD_WIFI_RESET:
     case TUYA_CMD_WIFI_SELECT:
-      AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: Rcvd WiFi Reset"));
+      AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: RX WiFi Reset"));
       TuyaResetWifi();
       break;
 
     case TUYA_CMD_WIFI_STATE:
-      AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: Rcvd WiFi LED set ACK"));
+      AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: RX WiFi LED set ACK"));
       tuya_wifi_state = WifiState();
       break;
 
     case TUYA_CMD_MCU_CONF:
-      AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: Rcvd MCU configuration"));
+      AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: RX MCU configuration"));
 
       if (tuya_buffer[5] == 2) {
         uint8_t led1_gpio = tuya_buffer[6];
@@ -256,7 +259,7 @@ void TuyaPacketProcess()
       break;
 
     default:
-      AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: Rcvd unknown command"));
+      AddLog_P(LOG_LEVEL_DEBUG, PSTR("TYA: RX unknown command"));
   }
 }
 
@@ -282,7 +285,7 @@ void TuyaInit()
   if (!Settings.param[P_TUYA_DIMMER_ID]) {
     Settings.param[P_TUYA_DIMMER_ID] = TUYA_DIMMER_ID;
   }
-  TuyaSerial = new TasmotaSerial(pin[GPIO_TUYA_RX], pin[GPIO_TUYA_TX], 1);
+  TuyaSerial = new TasmotaSerial(pin[GPIO_TUYA_RX], pin[GPIO_TUYA_TX], 2);
   if (TuyaSerial->begin(9600)) {
     if (TuyaSerial->hardwareSerial()) { ClaimSerial(); }
     // Get MCU Configuration
@@ -323,7 +326,7 @@ void TuyaSerialInput()
     else if ((tuya_cmd_status == 3) && (tuya_byte_counter == (6 + tuya_data_len)) && (tuya_cmd_checksum == serial_in_byte)){ // Compare checksum and process packet
       tuya_buffer[tuya_byte_counter++] = serial_in_byte;
 
-      snprintf_P(log_data, sizeof(log_data), PSTR("TYA: Received Packet: \""));
+      snprintf_P(log_data, sizeof(log_data), PSTR("TYA: RX Packet: \""));
       for (int i = 0; i < tuya_byte_counter; i++) {
         snprintf_P(log_data, sizeof(log_data), PSTR("%s%02x"), log_data, tuya_buffer[i]);
       }
@@ -385,8 +388,6 @@ void TuyaSetWifiLed(){
 /*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
-
-#define XDRV_16
 
 boolean Xdrv16(byte function)
 {
