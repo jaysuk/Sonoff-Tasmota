@@ -408,7 +408,7 @@ void StartWebserver(int type, IPAddress ipweb)
   if (type) { webserver_state = type; }
 }
 
-void StopWebserver()
+void StopWebserver(void)
 {
   if (webserver_state) {
     WebServer->close();
@@ -417,7 +417,7 @@ void StopWebserver()
   }
 }
 
-void WifiManagerBegin()
+void WifiManagerBegin(void)
 {
   // setup AP
   if (!global_state.wifi_down) {
@@ -440,7 +440,7 @@ void WifiManagerBegin()
   StartWebserver(HTTP_MANAGER, WiFi.softAPIP());
 }
 
-void PollDnsWebserver()
+void PollDnsWebserver(void)
 {
   if (DnsServer) { DnsServer->processNextRequest(); }
   if (WebServer) { WebServer->handleClient(); }
@@ -448,7 +448,7 @@ void PollDnsWebserver()
 
 /*********************************************************************************************/
 
-void SetHeader()
+void SetHeader(void)
 {
   WebServer->sendHeader(F("Cache-Control"), F("no-cache, no-store, must-revalidate"));
   WebServer->sendHeader(F("Pragma"), F("no-cache"));
@@ -555,7 +555,7 @@ void WebRestart(uint8_t type)
 
 /*********************************************************************************************/
 
-void HandleWifiLogin()
+void HandleWifiLogin(void)
 {
   String page = FPSTR(HTTP_HEAD);
   page.replace(F("{v}"), FPSTR( D_CONFIGURE_WIFI ));
@@ -564,7 +564,7 @@ void HandleWifiLogin()
   ShowPage(page, false);  // false means show page no matter if the client has or has not credentials
 }
 
-void HandleRoot()
+void HandleRoot(void)
 {
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_MAIN_MENU);
 
@@ -663,7 +663,7 @@ void HandleRoot()
   }
 }
 
-void HandleAjaxStatusRefresh()
+void HandleAjaxStatusRefresh(void)
 {
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
 
@@ -733,7 +733,7 @@ void HandleAjaxStatusRefresh()
   WebServer->send(200, FPSTR(HDR_CTYPE_HTML), mqtt_data);
 }
 
-boolean HttpUser()
+boolean HttpUser(void)
 {
   boolean status = (HTTP_USER == webserver_state);
   if (status) { HandleRoot(); }
@@ -744,7 +744,7 @@ boolean HttpUser()
 
 #ifndef BE_MINIMAL
 
-void HandleConfiguration()
+void HandleConfiguration(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -767,7 +767,7 @@ void HandleConfiguration()
 
 /*-------------------------------------------------------------------------------------------*/
 
-void HandleModuleConfiguration()
+void HandleModuleConfiguration(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -836,7 +836,7 @@ void HandleModuleConfiguration()
   ShowPage(page);
 }
 
-void ModuleSaveSettings()
+void ModuleSaveSettings(void)
 {
   char tmp[100];
   char stemp[TOPSZ];
@@ -878,7 +878,7 @@ String htmlEscape(String s)
     return s;
 }
 
-void HandleWifiConfiguration()
+void HandleWifiConfiguration(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -982,7 +982,7 @@ void HandleWifiConfiguration()
   ShowPage(page, !(HTTP_MANAGER == webserver_state));
 }
 
-void WifiSaveSettings()
+void WifiSaveSettings(void)
 {
   char tmp[100];
 
@@ -1006,7 +1006,7 @@ void WifiSaveSettings()
 
 /*-------------------------------------------------------------------------------------------*/
 
-void HandleLoggingConfiguration()
+void HandleLoggingConfiguration(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1061,7 +1061,7 @@ void HandleLoggingConfiguration()
   ShowPage(page);
 }
 
-void LoggingSaveSettings()
+void LoggingSaveSettings(void)
 {
   char tmp[100];
 
@@ -1089,7 +1089,7 @@ void LoggingSaveSettings()
 
 /*-------------------------------------------------------------------------------------------*/
 
-void HandleOtherConfiguration()
+void HandleOtherConfiguration(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1134,7 +1134,7 @@ void HandleOtherConfiguration()
   ShowPage(page);
 }
 
-void OtherSaveSettings()
+void OtherSaveSettings(void)
 {
   char tmp[100];
   char stemp[TOPSZ];
@@ -1160,7 +1160,7 @@ void OtherSaveSettings()
 
 /*-------------------------------------------------------------------------------------------*/
 
-void HandleBackupConfiguration()
+void HandleBackupConfiguration(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1204,7 +1204,7 @@ void HandleBackupConfiguration()
 
 /*-------------------------------------------------------------------------------------------*/
 
-void HandleResetConfiguration()
+void HandleResetConfiguration(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1225,7 +1225,7 @@ void HandleResetConfiguration()
   ExecuteWebCommand(svalue, SRC_WEBGUI);
 }
 
-void HandleRestoreConfiguration()
+void HandleRestoreConfiguration(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1246,7 +1246,7 @@ void HandleRestoreConfiguration()
 
 /*-------------------------------------------------------------------------------------------*/
 
-void HandleInformation()
+void HandleInformation(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1367,7 +1367,7 @@ void HandleInformation()
 
 /*-------------------------------------------------------------------------------------------*/
 
-void HandleUpgradeFirmware()
+void HandleUpgradeFirmware(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1387,7 +1387,7 @@ void HandleUpgradeFirmware()
   upload_file_type = UPL_TASMOTA;
 }
 
-void HandleUpgradeFirmwareStart()
+void HandleUpgradeFirmwareStart(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1416,7 +1416,7 @@ void HandleUpgradeFirmwareStart()
   ExecuteWebCommand(svalue, SRC_WEBGUI);
 }
 
-void HandleUploadDone()
+void HandleUploadDone(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1470,7 +1470,7 @@ void HandleUploadDone()
   ShowPage(page);
 }
 
-void HandleUploadLoop()
+void HandleUploadLoop(void)
 {
   // Based on ESP8266HTTPUpdateServer.cpp uses ESP8266WebServer Parsing.cpp and Cores Updater.cpp (Update)
   boolean _serialoutput = (LOG_LEVEL_DEBUG <= seriallog_level);
@@ -1544,7 +1544,7 @@ void HandleUploadLoop()
             upload_error = 4;  // Program flash size is larger than real flash size
             return;
           }
-          upload.buf[2] = 3;  // Force DOUT - ESP8285
+//          upload.buf[2] = 3;  // Force DOUT - ESP8285
         }
       }
     }
@@ -1664,7 +1664,7 @@ void HandleUploadLoop()
 
 /*-------------------------------------------------------------------------------------------*/
 
-void HandlePreflightRequest()
+void HandlePreflightRequest(void)
 {
   WebServer->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   WebServer->sendHeader(F("Access-Control-Allow-Methods"), F("GET, POST"));
@@ -1674,7 +1674,7 @@ void HandlePreflightRequest()
 
 /*-------------------------------------------------------------------------------------------*/
 
-void HandleHttpCommand()
+void HandleHttpCommand(void)
 {
   if (HttpUser()) { return; }
 //  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1734,7 +1734,7 @@ void HandleHttpCommand()
 
 /*-------------------------------------------------------------------------------------------*/
 
-void HandleConsole()
+void HandleConsole(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1750,7 +1750,7 @@ void HandleConsole()
   ShowPage(page);
 }
 
-void HandleAjaxConsoleRefresh()
+void HandleAjaxConsoleRefresh(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -1809,7 +1809,7 @@ void HandleAjaxConsoleRefresh()
 
 /********************************************************************************************/
 
-void HandleNotFound()
+void HandleNotFound(void)
 {
 //  snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_HTTP "Not fount (%s)"), WebServer->uri().c_str());
 //  AddLog(LOG_LEVEL_DEBUG);
@@ -1834,7 +1834,7 @@ void HandleNotFound()
 }
 
 /* Redirect to captive portal if we got a request for another domain. Return true in that case so the page handler do not try to handle the request again. */
-boolean CaptivePortal()
+boolean CaptivePortal(void)
 {
   if ((HTTP_MANAGER == webserver_state) && !ValidIpAddress(WebServer->hostHeader())) {
     AddLog_P(LOG_LEVEL_DEBUG, PSTR(D_LOG_HTTP D_REDIRECTED));
@@ -1895,9 +1895,11 @@ String UrlEncode(const String& text)
 
 int WebSend(char *buffer)
 {
-  // http://192.168.178.86:80/cm?user=admin&password=joker&cmnd=POWER1 ON
-  // http://192.168.178.86:80/cm?cmnd=POWER1 ON
-  // [192.168.178.86:80,admin:joker] POWER1 ON
+  /* [sonoff] POWER1 ON                                               --> Sends http://sonoff/cm?cmnd=POWER1 ON
+   * [192.168.178.86:80,admin:joker] POWER1 ON                        --> Sends http://hostname:80/cm?user=admin&password=joker&cmnd=POWER1 ON
+   * [sonoff] /any/link/starting/with/a/slash.php?log=123             --> Sends http://sonoff/any/link/starting/with/a/slash.php?log=123
+   * [sonoff,admin:joker] /any/link/starting/with/a/slash.php?log=123 --> Sends http://sonoff/any/link/starting/with/a/slash.php?log=123
+   */
 
   char *host;
   char *port;
@@ -1907,31 +1909,38 @@ int WebSend(char *buffer)
   uint16_t nport = 80;
   int status = 1;                             // Wrong parameters
 
-  host = strtok_r(buffer, "]", &command);     // buffer = [192.168.178.86:80,admin:joker] POWER1 ON
+                                              // buffer = |  [  192.168.178.86  :  80  ,  admin  :  joker  ]    POWER1 ON   |
+  host = strtok_r(buffer, "]", &command);     // host = |  [  192.168.178.86  :  80  ,  admin  :  joker  |, command = |    POWER1 ON   |
   if (host && command) {
-    host = LTrim(host);
-    host++;  // Skip [
-    host = strtok_r(host, ",", &user);        // host = 192.168.178.86:80,admin:joker > 192.168.178.86:80
-    host = strtok_r(host, ":", &port);        // host = 192.168.178.86:80 > 192.168.178.86
-    if (user) {
-      user = strtok_r(user, ":", &password);  // user = admin:joker > admin
+    host = Trim(host);                        // host = |[  192.168.178.86  :  80  ,  admin  :  joker|
+    host++;                                   // host = |  192.168.178.86  :  80  ,  admin  :  joker| - Skip [
+    host = strtok_r(host, ",", &user);        // host = |  192.168.178.86  :  80  |, user = |  admin  :  joker|
+    host = strtok_r(host, ":", &port);        // host = |  192.168.178.86  |, port = |  80  |
+    host = Trim(host);                        // host = |192.168.178.86|
+    if (port) {
+      port = Trim(port);                      // port = |80|
+      nport = atoi(port);
     }
-
-//snprintf_P(log_data, sizeof(log_data), PSTR("DBG: Buffer |%X|, Host |%X|, Port |%X|, User |%X|, Password |%X|, Command |%X|"), buffer, host, port, user, password, command);
-//AddLog(LOG_LEVEL_DEBUG);
-
-    if (port) { nport = atoi(port); }
+    if (user) {
+      user = strtok_r(user, ":", &password);  // user = |  admin  |, password = |  joker|
+      user = Trim(user);                      // user = |admin|
+      if (password) { password = Trim(password); }  // password = |joker|
+    }
+    command = Trim(command);                  // command = |POWER1 ON| or |/any/link/starting/with/a/slash.php?log=123|
 
     String nuri = "";
-    if (user && password) {
-      nuri += F("user=");
-      nuri += user;
-      nuri += F("&password=");
-      nuri += password;
-      nuri += F("&");
+    if (command[0] != '/') {
+      nuri = "/cm?";
+      if (user && password) {
+        nuri += F("user=");
+        nuri += user;
+        nuri += F("&password=");
+        nuri += password;
+        nuri += F("&");
+      }
+      nuri += F("cmnd=");
     }
-    nuri += F("cmnd=");
-    nuri += LTrim(command);
+    nuri += command;
     String uri = UrlEncode(nuri);
 
     IPAddress host_ip;
@@ -1947,15 +1956,16 @@ int WebSend(char *buffer)
       }
 
       if (connected) {
-        String url = F("GET /cm?");
+        String url = F("GET ");
         url += uri;
-        url += F(" HTTP/1.1\r\n Host: ");
-        url += IPAddress(host_ip).toString();
+        url += F(" HTTP/1.1\r\nHost: ");
+//        url += IPAddress(host_ip).toString();
+        url += host;   // https://tools.ietf.org/html/rfc7230#section-5.4 (#4331)
         if (port) {
-          url += F(" \r\n Port: ");
+          url += F(":");
           url += port;
         }
-        url += F(" \r\n Connection: close\r\n\r\n");
+        url += F("\r\nConnection: close\r\n\r\n");
 
 //snprintf_P(log_data, sizeof(log_data), PSTR("DBG: Url |%s|"), url.c_str());
 //AddLog(LOG_LEVEL_DEBUG);
@@ -1980,7 +1990,7 @@ enum WebCommands { CMND_WEBSERVER, CMND_WEBPASSWORD, CMND_WEBLOG, CMND_WEBREFRES
 const char kWebCommands[] PROGMEM = D_CMND_WEBSERVER "|" D_CMND_WEBPASSWORD "|" D_CMND_WEBLOG "|" D_CMND_WEBREFRESH "|" D_CMND_WEBSEND "|" D_CMND_EMULATION ;
 const char kWebSendStatus[] PROGMEM = D_JSON_DONE "|" D_JSON_WRONG_PARAMETERS "|" D_JSON_CONNECT_FAILED "|" D_JSON_HOST_NOT_FOUND ;
 
-bool WebCommand()
+bool WebCommand(void)
 {
   char command[CMDSZ];
   bool serviced = true;
