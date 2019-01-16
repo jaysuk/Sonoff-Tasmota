@@ -1,7 +1,7 @@
 /*
   xnrg_03_pzem004t.ino - PZEM004T energy sensor support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -181,8 +181,10 @@ void PzemEvery200ms(void)
           break;
         case 4:  // Total energy as 99999Wh
           if (!energy_start || (value < energy_start)) energy_start = value;  // Init after restart and hanlde roll-over if any
-          energy_kWhtoday += (value - energy_start) * 100;
-          energy_start = value;
+          if (value != energy_start) {
+            energy_kWhtoday += (unsigned long)((value - energy_start) * 100);
+            energy_start = value;
+          }
           EnergyUpdateToday();
           break;
       }

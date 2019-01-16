@@ -1,7 +1,7 @@
 /*
   xdrv_16_tuyadimmer.ino - Tuya dimmer support for Sonoff-Tasmota
 
-  Copyright (C) 2018  digiblur, Joel Stein and Theo Arends
+  Copyright (C) 2019  digiblur, Joel Stein and Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ uint8_t tuya_cmd_checksum = 0;              // Checksum of tuya command
 uint8_t tuya_data_len = 0;                  // Data lenght of command
 int8_t tuya_wifi_state = -2;                // Keep MCU wifi-status in sync with WifiState()
 
-char tuya_buffer[TUYA_BUFFER_SIZE];         // Serial receive buffer
+char *tuya_buffer = NULL;                   // Serial receive buffer
 int tuya_byte_counter = 0;                  // Index in serial receive buffer
 
 /*********************************************************************************************\
@@ -131,6 +131,12 @@ boolean TuyaSetPower(void)
     status = true;
   }
   return status;
+}
+
+boolean TuyaSetChannels(void)
+{
+  LightSerialDuty(((uint8_t*)XdrvMailbox.data)[0]);
+  return true;
 }
 
 void LightSerialDuty(uint8_t duty)
@@ -242,7 +248,7 @@ void TuyaPacketProcess(void)
         uint8_t key1_gpio = tuya_buffer[7];
         boolean key1_set = false;
         boolean led1_set = false;
-        for (byte i = 0; i < MAX_GPIO_PIN; i++) {
+        for (byte i = 0; i < sizeof(Settings.my_gp); i++) {
           if (Settings.my_gp.io[i] == GPIO_LED1) led1_set = true;
           else if (Settings.my_gp.io[i] == GPIO_KEY1) key1_set = true;
         }
@@ -285,14 +291,17 @@ void TuyaInit(void)
   if (!Settings.param[P_TUYA_DIMMER_ID]) {
     Settings.param[P_TUYA_DIMMER_ID] = TUYA_DIMMER_ID;
   }
-  TuyaSerial = new TasmotaSerial(pin[GPIO_TUYA_RX], pin[GPIO_TUYA_TX], 2);
-  if (TuyaSerial->begin(9600)) {
-    if (TuyaSerial->hardwareSerial()) { ClaimSerial(); }
-    // Get MCU Configuration
-    snprintf_P(log_data, sizeof(log_data), "TYA: Request MCU configuration");
-    AddLog(LOG_LEVEL_DEBUG);
+  tuya_buffer = (char*)(malloc(TUYA_BUFFER_SIZE));
+  if (tuya_buffer != NULL) {
+    TuyaSerial = new TasmotaSerial(pin[GPIO_TUYA_RX], pin[GPIO_TUYA_TX], 2);
+    if (TuyaSerial->begin(9600)) {
+      if (TuyaSerial->hardwareSerial()) { ClaimSerial(); }
+      // Get MCU Configuration
+      snprintf_P(log_data, sizeof(log_data), "TYA: Request MCU configuration");
+      AddLog(LOG_LEVEL_DEBUG);
 
-    TuyaSendCmd(TUYA_CMD_MCU_CONF);
+      TuyaSendCmd(TUYA_CMD_MCU_CONF);
+    }
   }
 }
 
@@ -412,6 +421,9 @@ boolean Xdrv16(byte function)
         break;
       case FUNC_EVERY_SECOND:
         if(TuyaSerial && tuya_wifi_state!=WifiState()) { TuyaSetWifiLed(); }
+        break;
+      case FUNC_SET_CHANNELS:
+        result = TuyaSetChannels();
         break;
     }
   }

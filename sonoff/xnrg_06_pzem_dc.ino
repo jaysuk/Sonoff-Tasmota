@@ -1,7 +1,7 @@
 /*
   xnrg_06_pzem_dc.ino - PZEM-003,017 Modbus DC energy sensor support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -60,9 +60,11 @@ void PzemDcEverySecond(void)
       energy_active_power = (float)((buffer[9] << 24) + (buffer[10] << 16) + (buffer[7] << 8) + buffer[8]) / 10.0;  // 429496729.0 W
       float energy = (float)((buffer[13] << 24) + (buffer[14] << 16) + (buffer[11] << 8) + buffer[12]);             // 4294967295 Wh
 
-      if (!energy_start || (energy < energy_start)) { energy_start = energy; }  // Init after restart and hanlde roll-over if any
-      energy_kWhtoday += (energy - energy_start) * 100;
-      energy_start = energy;
+      if (!energy_start || (energy < energy_start)) { energy_start = energy; }  // Init after restart and handle roll-over if any
+      if (energy != energy_start) {
+        energy_kWhtoday += (unsigned long)((energy - energy_start) * 100);
+        energy_start = energy;
+      }
       EnergyUpdateToday();
     }
   }

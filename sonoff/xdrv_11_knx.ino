@@ -1,7 +1,7 @@
 /*
   xdrv_11_knx.ino - KNX IP Protocol support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Adrian Scillato  (https://github.com/ascillato)
+  Copyright (C) 2019  Adrian Scillato  (https://github.com/ascillato)
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -465,11 +465,11 @@ void KNX_INIT(void)
   //   and activate options according to the hardware
   /*for (int i = GPIO_REL1; i < GPIO_REL8 + 1; ++i)
   {
-    if (GetUsedInModule(i, my_module.gp.io)) { device_param[i - GPIO_REL1].show = true; }
+    if (GetUsedInModule(i, my_module.io)) { device_param[i - GPIO_REL1].show = true; }
   }
   for (int i = GPIO_REL1_INV; i < GPIO_REL8_INV + 1; ++i)
   {
-    if (GetUsedInModule(i, my_module.gp.io)) { device_param[i - GPIO_REL1_INV].show = true; }
+    if (GetUsedInModule(i, my_module.io)) { device_param[i - GPIO_REL1_INV].show = true; }
   }*/
   for (int i = 0; i < devices_present; ++i)
   {
@@ -477,19 +477,27 @@ void KNX_INIT(void)
   }
   for (int i = GPIO_SWT1; i < GPIO_SWT4 + 1; ++i)
   {
-    if (GetUsedInModule(i, my_module.gp.io)) { device_param[i - GPIO_SWT1 + 8].show = true; }
+    if (GetUsedInModule(i, my_module.io)) { device_param[i - GPIO_SWT1 + 8].show = true; }
   }
   for (int i = GPIO_KEY1; i < GPIO_KEY4 + 1; ++i)
   {
-    if (GetUsedInModule(i, my_module.gp.io)) { device_param[i - GPIO_KEY1 + 8].show = true; }
+    if (GetUsedInModule(i, my_module.io)) { device_param[i - GPIO_KEY1 + 8].show = true; }
   }
-  if (GetUsedInModule(GPIO_DHT11, my_module.gp.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
-  if (GetUsedInModule(GPIO_DHT22, my_module.gp.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
-  if (GetUsedInModule(GPIO_SI7021, my_module.gp.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
-  if (GetUsedInModule(GPIO_DSB, my_module.gp.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
-  if (GetUsedInModule(GPIO_DHT11, my_module.gp.io)) { device_param[KNX_HUMIDITY-1].show = true; }
-  if (GetUsedInModule(GPIO_DHT22, my_module.gp.io)) { device_param[KNX_HUMIDITY-1].show = true; }
-  if (GetUsedInModule(GPIO_SI7021, my_module.gp.io)) { device_param[KNX_HUMIDITY-1].show = true; }
+  for (int i = GPIO_SWT1_NP; i < GPIO_SWT4_NP + 1; ++i)
+  {
+    if (GetUsedInModule(i, my_module.io)) { device_param[i - GPIO_SWT1_NP + 8].show = true; }
+  }
+  for (int i = GPIO_KEY1_NP; i < GPIO_KEY4_NP + 1; ++i)
+  {
+    if (GetUsedInModule(i, my_module.io)) { device_param[i - GPIO_KEY1_NP + 8].show = true; }
+  }
+  if (GetUsedInModule(GPIO_DHT11, my_module.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
+  if (GetUsedInModule(GPIO_DHT22, my_module.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
+  if (GetUsedInModule(GPIO_SI7021, my_module.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
+  if (GetUsedInModule(GPIO_DSB, my_module.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
+  if (GetUsedInModule(GPIO_DHT11, my_module.io)) { device_param[KNX_HUMIDITY-1].show = true; }
+  if (GetUsedInModule(GPIO_DHT22, my_module.io)) { device_param[KNX_HUMIDITY-1].show = true; }
+  if (GetUsedInModule(GPIO_SI7021, my_module.io)) { device_param[KNX_HUMIDITY-1].show = true; }
 
   // Sonoff 31 or Sonoff Pow or any HLW8012 based device or Sonoff POW R2 or Any device with a Pzem004T
   if ( ( SONOFF_S31 == Settings.module ) || ( SONOFF_POW_R2 == Settings.module ) || ( energy_flg != ENERGY_NONE ) ) {
@@ -543,7 +551,7 @@ void KNX_CB_Action(message_t const &msg, void *arg)
   device_parameters_t *chan = (device_parameters_t *)arg;
   if (!(Settings.flag.knx_enabled)) { return; }
 
-  char tempchar[25];
+  char tempchar[33];
 
   if (msg.data_len == 1) {
     // COMMAND
@@ -797,8 +805,8 @@ const char HTTP_FORM_KNX_ADD_TABLE_ROW2[] PROGMEM =
 
 void HandleKNXConfiguration(void)
 {
-  if (HttpUser()) { return; }
-  if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
+  if (!HttpCheckPriviledgedAccess()) { return; }
+
   AddLog_P(LOG_LEVEL_DEBUG, S_LOG_HTTP, S_CONFIGURE_KNX);
 
   char tmp[100];
@@ -1290,7 +1298,7 @@ boolean Xdrv11(byte function)
 #ifdef USE_WEBSERVER
 #ifdef USE_KNX_WEB_MENU
       case FUNC_WEB_ADD_BUTTON:
-        strncat_P(mqtt_data, HTTP_BTN_MENU_KNX, sizeof(mqtt_data));
+        strncat_P(mqtt_data, HTTP_BTN_MENU_KNX, sizeof(mqtt_data) - strlen(mqtt_data) -1);
         break;
       case FUNC_WEB_ADD_HANDLER:
         WebServer->on("/kn", HandleKNXConfiguration);
@@ -1298,7 +1306,7 @@ boolean Xdrv11(byte function)
 #endif // USE_KNX_WEB_MENU
 #endif  // USE_WEBSERVER
       case FUNC_LOOP:
-        knx.loop();  // Process knx events
+        if (!global_state.wifi_down) { knx.loop(); }  // Process knx events
         break;
       case FUNC_EVERY_50_MSECOND:
         if (toggle_inhibit) {

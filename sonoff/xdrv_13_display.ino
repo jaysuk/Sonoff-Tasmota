@@ -1,7 +1,7 @@
 /*
   xdrv_13_display.ino - Display support for Sonoff-Tasmota
 
-  Copyright (C) 2018  Theo Arends
+  Copyright (C) 2019  Theo Arends
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #define XDRV_13                13
 
 #define DISPLAY_MAX_DRIVERS    16           // Max number of display drivers/models supported by xdsp_interface.ino
-#define DISPLAY_MAX_COLS       40           // Max number of columns allowed with command DisplayCols
+#define DISPLAY_MAX_COLS       44           // Max number of columns allowed with command DisplayCols
 #define DISPLAY_MAX_ROWS       32           // Max number of lines allowed with command DisplayRows
 
 #define DISPLAY_LOG_ROWS       32           // Number of lines in display log buffer
@@ -427,13 +427,18 @@ void DisplayText(void)
             cp += var;
             DisplayDrawFilledRectangle(disp_xpos, disp_ypos, temp, temp1, color);
             break;
-          case 't': {
+          case 't':
             if (dp < (linebuf + DISPLAY_BUFFER_COLS) -5) {
-              snprintf_P(dp, 5, PSTR("%02d" D_HOUR_MINUTE_SEPARATOR "%02d"), RtcTime.hour, RtcTime.minute);
+              snprintf_P(dp, 6, PSTR("%02d" D_HOUR_MINUTE_SEPARATOR "%02d"), RtcTime.hour, RtcTime.minute);
               dp += 5;
             }
             break;
-          }
+          case 'T':
+            if (dp < (linebuf + DISPLAY_BUFFER_COLS) -8) {
+              snprintf_P(dp, 9, PSTR("%02d" D_MONTH_DAY_SEPARATOR "%02d" D_YEAR_MONTH_SEPARATOR "%02d"), RtcTime.day_of_month, RtcTime.month, RtcTime.year%2000);
+              dp += 8;
+            }
+            break;
           case 'd':
             // force draw grafics buffer
             DisplayDrawFrame();
@@ -785,14 +790,23 @@ void DisplayAnalyzeJson(char *topic, char *json)
           if (value2.is<JsonObject>()) {
             JsonObject& Object3 = value2;
             for (JsonObject::iterator it3 = Object3.begin(); it3 != Object3.end(); ++it3) {
-              DisplayJsonValue(topic, it->key, it3->key, it3->value.as<const char*>());  // Sensor 56%
+              const char* value = it3->value;
+              if (value != nullptr) {  // "DHT11":{"Temperature":null,"Humidity":null} - ignore null as it will raise exception 28
+                DisplayJsonValue(topic, it->key, it3->key, value);  // Sensor 56%
+              }
             }
           } else {
-            DisplayJsonValue(topic, it->key, it2->key, it2->value.as<const char*>());  // Sensor  56%
+            const char* value = it2->value;
+            if (value != nullptr) {
+              DisplayJsonValue(topic, it->key, it2->key, value);  // Sensor  56%
+            }
           }
         }
       } else {
-        DisplayJsonValue(topic, it->key, it->key, it->value.as<const char*>());  // Topic  56%
+        const char* value = it->value;
+        if (value != nullptr) {
+          DisplayJsonValue(topic, it->key, it->key, value);  // Topic  56%
+        }
       }
     }
   }
@@ -819,11 +833,11 @@ void DisplayMqttSubscribe(void)
       if (!strcmp_P(tp, PSTR(MQTT_TOKEN_PREFIX))) {
         break;
       }
-      strncat_P(ntopic, PSTR("+/"), sizeof(ntopic));           // Add single-level wildcards
+      strncat_P(ntopic, PSTR("+/"), sizeof(ntopic) - strlen(ntopic) -1);           // Add single-level wildcards
       tp = strtok(NULL, "/");
     }
-    strncat(ntopic, Settings.mqtt_prefix[2], sizeof(ntopic));  // Subscribe to tele messages
-    strncat_P(ntopic, PSTR("/#"), sizeof(ntopic));             // Add multi-level wildcard
+    strncat(ntopic, Settings.mqtt_prefix[2], sizeof(ntopic) - strlen(ntopic) -1);  // Subscribe to tele messages
+    strncat_P(ntopic, PSTR("/#"), sizeof(ntopic) - strlen(ntopic) -1);             // Add multi-level wildcard
     MqttSubscribe(ntopic);
     disp_subscribed = 1;
   } else {
@@ -1066,7 +1080,7 @@ boolean Xdrv13(byte function)
 {
   boolean result = false;
 
-  if ((i2c_flg || spi_flg) && XdspPresent()) {
+  if ((i2c_flg || spi_flg || soft_spi_flg) && XdspPresent()) {
     switch (function) {
       case FUNC_PRE_INIT:
         DisplayInitDriver();
